@@ -1,0 +1,66 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif; /* Cambio de la fuente de letra */
+            background-color: #fffacd; /* Fondo amarillo claro */
+        }
+
+        #filtroForm {
+            width: 50%; /* Ancho del formulario */
+            margin: 0 auto; /* Para centrar el formulario */
+            text-align: center; /* Para centrar el texto dentro del formulario */
+        }
+
+        h1, h3 {
+            text-align: center; /* Para centrar los encabezados */
+        }
+
+        select, button {
+            margin-top: 10px; /* Espacio entre elementos */
+        }
+
+        .logo-left, .logo-right {
+            width: 100px; /* Ancho de la imagen */
+            height: 100px; /* Alto de la imagen */
+            margin-top: 10px; /* Espacio entre la imagen y el título */
+        }
+
+        .logo-left {
+            float: left; /* Alinea a la izquierda */
+            margin-right: 10px; /* Espacio entre la imagen y el título */
+        }
+
+        .logo-right {
+            float: right; /* Alinea a la derecha */
+            margin-left: 10px; /* Espacio entre la imagen y el título */
+        }
+
+    </style>
+</head>
+<body>
+    <h1>Facultad de Ciencias y Tecnologías</h1>
+    <h3>Selecciona una Materia :</h3>
+    <form id="filtroForm"  method="get" action="{% url 'programa' %}">
+        <select id="cboCarrera" name="Carrera">
+            <option value="KTII">Informatica</option>
+            <option value="KTIC">Civil</option>
+            <option value="KTIL">Electrónica</option>
+            <option value="KTIE">Eléctrica</option>
+        </select>
+        <select id="cboMateria" name="Materia">
+
+        </select>
+        <br>
+        <button type="submit" id="filtrarBtn">Seleccionar</button>
+    </form>
+<script src="{% static 'js/script.js' %}"></script>
+</body>
+</html>
+
