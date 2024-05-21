@@ -1,0 +1,80 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ nombre_archivo }}</title>
+    <script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
+    <script src="{% static 'js/pagedjs_custom.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+<body>
+
+    <!-- Contenedor de la hoja -->
+    <div class="sheet-container">
+        <!-- Contenido -->
+    {% for identificacion_data in identificaciones %}
+        <div class="content">
+            <!-- Contenido de la página 1 -->
+            <div class="page">
+                <h2>Identificación</h2>
+<div class="identification-table">
+    <table>
+        <tr>
+            <td>A. Nombre de la Materia</td>
+            <td>{{ identificacion_data.identificacion.materia }}</td>
+        </tr>
+        <tr>
+            <td>B. Código</td>
+            <td>{{ identificacion_data.identificacion.codigo }}</td>
+        </tr>
+        <tr>
+            <td>C. Condición</td>
+            <td>{{ identificacion_data.identificacion.condicion }}</td>
+        </tr>
+        <tr>
+            <td>D. Carrera</td>
+            <td>{{ identificacion_data.identificacion.carrera }}</td>
+        </tr>
+        <tr>
+            <td>E. Curso</td>
+            <td>{{ identificacion_data.identificacion.curso }}</td>
+        </tr>
+        <tr>
+            <td>F. Semestre</td>
+            <td>{{ identificacion_data.identificacion.semestre }}</td>
+        </tr>
+        <tr>
+            <td>G. Requisitos</td>
+            <td>{{ identificacion_data.identificacion.requisitos }}</td>
+        </tr>
+        <tr>
+            <td>H. Carga horaria semanal</td>
+            <td>{{ identificacion_data.identificacion.cargaSemanal }}</td>
+        </tr>
+        <tr>
+            <td>I. Carga horaria semestral</td>
+            <td>{{ identificacion_data.identificacion.cargaSemestral }}</td>
+        </tr>
+    </table>
+</div>
+
+
+                {% for seccion_titulo, seccion_contenido in identificacion_data.secciones.items %}
+                    <h2>{{ seccion_titulo }}</h2>
+                    <p>{{ seccion_contenido|safe }}</p>
+
+                   {% if forloop.last %}
+                    <!-- Salto de página después del último ciclo -->
+                    <div class="page-break"></div>
+                {% endif %}
+            {% endfor %}
+
+            </div>
+        </div>
+    {% endfor %}
+    </div>
+
+</body>
+</html>

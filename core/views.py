@@ -1,21 +1,142 @@
-from django.http import JsonResponse
+import pdfplumber
 from django.shortcuts import render, redirect
-from .models import PDF
-import PyPDF2
-import re
-import json
+from .models import PDF, Carrera
+from io import BytesIO
+from unidecode import unidecode
+from django.http import HttpResponse, JsonResponse
+from django.template.loader import render_to_string
+
 
 def import_success(request):
     return render(request, 'import_success.html')
 
 
-def eliminar_cabecera(texto):
+def carrera_pdf_list(request):
+    carreras = Carrera.objects.all()
+    pdfs = PDF.objects.none()
+    selected_carrera_id = request.GET.get('id_carrera')
 
-    patron_eliminar = r'Carrera\s+de\sIngeniería\s+(?:en\s+)?(?:Civil|Eléctrica|Electrónica|In[ ]?formática)\s+Facultad\s+de\s+Ciencias\s+y\s+Tecnol[ ]?ogías'
+    if selected_carrera_id:
+        selected_carrera = Carrera.objects.get(pk=selected_carrera_id)
+        pdfs = PDF.objects.filter(id_carrera=selected_carrera)
 
-    texto_sin_cabecera = re.sub(patron_eliminar, "", texto)
+    return render(request, 'carrera_pdf_list.html',
+                  {'carreras': carreras, 'pdfs': pdfs, 'selected_carrera_id': selected_carrera_id})
 
-    return texto_sin_cabecera
+
+def procesar_lista(contenido):
+    # Dividir el contenido en párrafos
+    parrafos = contenido.split('\n\n')
+
+    # Iniciar el contenido HTML
+    html_contenido = ''
+
+    # Recorrer los párrafos y agregarlos al contenido HTML
+    for parrafo in parrafos:
+        # Dividir el párrafo en elementos de la lista
+        items = parrafo.split('-')
+
+        # Si el delimitador "-" no funcionó, intentar con ""
+        if len(items) == 1:
+            items = parrafo.split("")
+        # Iniciar la lista HTML para el párrafo
+        lista_html = '<ul>'
+
+        # Recorrer los elementos y agregarlos a la lista HTML
+        for item in items:
+            # Eliminar espacios en blanco al inicio y final de cada elemento
+            item = item.strip()
+            # Si el elemento no está vacío, agregarlo a la lista HTML
+            if item:
+                lista_html += f'<li>{item}</li>'
+
+        # Cerrar la lista HTML para el párrafo
+        lista_html += '</ul>'
+
+        # Agregar la lista HTML al contenido HTML
+        html_contenido += lista_html
+
+    return html_contenido
+
+
+def pdf_to_html(request):
+    pdf_ids = request.GET.getlist('pdf_id')
+    print(pdf_ids)  # Obtener lista de IDs de PDF
+    if pdf_ids:
+        identificaciones = []
+        for pdf_id in pdf_ids:
+            try:
+                # Obtener el objeto PDF correspondiente a la ID proporcionada
+                pdf_instance = PDF.objects.get(id=pdf_id)
+                identificacion = {
+                    'nombre': pdf_instance.nombre,
+                    'materia': pdf_instance.materia,
+                    'codigo': pdf_instance.codigo,
+                    'condicion': pdf_instance.condicion,
+                    'carrera': pdf_instance.carrera,
+                    'curso': pdf_instance.curso,
+                    'semestre': pdf_instance.semestre,
+                    'requisitos': pdf_instance.requisitos,
+                    'cargaSemanal': pdf_instance.cargaSemanal,
+                    'cargaSemestral': pdf_instance.cargaSemestral,
+                }
+                secciones = {
+                    'fundamentacion': pdf_instance.fundamentacion,
+                    'objetivos': procesar_lista(pdf_instance.objetivos),
+                    'contenido': pdf_instance.contenido.replace('\n', '<br>'),
+                    'metodologia': procesar_lista(pdf_instance.metodologia),
+                    'evaluacion': pdf_instance.evaluacion.replace('\n', '<br>'),
+                    'bibliografia': procesar_lista(pdf_instance.bibliografia),
+                }
+                identificaciones.append({'identificacion': identificacion, 'secciones': secciones})
+                print("Nombre: ", pdf_instance.nombre)
+                print("Materia: ", pdf_instance.materia)
+            except PDF.DoesNotExist:
+                pass  # Manejar la situación en la que el PDF no existe`
+
+        identificaciones.sort(key=lambda x: x['identificacion']['codigo'])
+
+        if identificaciones:
+            html_content = render_to_string('pdf_to_html_template.html', {'identificaciones': identificaciones})
+            return HttpResponse(html_content)
+        else:
+            return HttpResponse("No se encontraron PDFs con las IDs proporcionadas.")
+    else:
+        return HttpResponse("No se proporcionaron IDs de PDF.")
+
+
+
+def eliminar_encabezados_pies_pagina(page):
+    # Obtener el tamaño de la página
+    width, height = page.width, page.height
+
+    # Recortar la página para eliminar los encabezados
+    page = page.within_bbox((0, 0, width, height))
+
+    # Extraer el texto de la página
+    page_text = page.extract_text()
+
+    # Eliminar cualquier texto que contenga "Página [número]"
+    page_text_lines = page_text.split('\n')
+    page_text_filtered = []
+
+    for line in page_text_lines:
+        if not line.startswith("Página "):
+            # Si la línea no comienza con "Página ", la agregamos sin modificaciones
+            page_text_filtered.append(line)
+        else:
+            # Si la línea comienza con "Página ", la ignoramos
+            continue
+
+    # Eliminar la frase "Carrera de Ingeniería en Informática Facultad de Ciencias Tecnológicas – UNC@" si aparece como una frase completa
+    page_text_filtered = [
+        line.replace("Carrera de Ingeniería en Informática Facultad de Ciencias Tecnológicas – UNC@", "") for line in
+        page_text_filtered]
+
+    # Unir las líneas con saltos de línea
+    page_text_filtered = '\n'.join(page_text_filtered)
+
+    return page_text_filtered
 
 
 def importar_pdf(request):
@@ -23,191 +144,152 @@ def importar_pdf(request):
         pdf_files = request.FILES.getlist('pdf_files')
 
         for pdf_file in pdf_files:
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
-            # page = pdf_reader.pages[0]
+            file_data = BytesIO(pdf_file.read())
+            pdf_document = pdfplumber.open(file_data)
+
             text = ""
-            # Iterar sobre todas las páginas del PDF
-            for no_page in range(len(pdf_reader.pages)):
-                info_page = pdf_reader._get_page(no_page)
-                texto_pagina = info_page.extract_text()
-                texto_sincab = eliminar_cabecera(texto_pagina)
-                text += texto_sincab
+            for page_number in range(len(pdf_document.pages)):
+                page = pdf_document.pages[page_number]
 
-            print(text)
+                # Eliminar encabezados y pies de página
+                page_text = eliminar_encabezados_pies_pagina(page)
+
+                text += page_text
+            if not text:
+                continue  # Si el texto está vacío, se pasa al siguiente archivo
+
+            # Utilizar pdfplumber para obtener los títulos del PDF
+            titles = []
+            for page in pdf_document.pages:
+                title_parts = []
+                title = ""
+                upper_count = 0
+                for obj in page.chars:
+                    if "Bold" in obj["fontname"]:
+                        title += obj["text"]
+                        if obj["text"].isupper():
+                            upper_count += 1
+                    elif title:
+                        title_parts.extend(title.split('.')) if '.' in title else title_parts.append(title.strip())
+                        title = ""
+                for part in title_parts:
+                    if part and len(part.strip()) > 8 and sum(1 for c in part if c.isupper()) >= 5:
+                        titles.append(part.strip())
+
             nombre_archivo = pdf_file.name
-            materia = None
-            codigo = None
-            condicion = None
-            curso = None
-            semestre = None
-            requisitos = None
-            carga_horaria_semanal = None
-            carga_horaria_semestral = None
-            carrera = None
-            fundamentacion = None
-            objetivos_text = None
-            contenido = None
-            metodologia = None
-            evaluacion = None
-            bibliografia = None
+            del titles[:2]
 
-            # Extraer datos del PDF
-            materia_match = re.search(
-                r'Nombre\s*de\s*la\s*Materia\s*:\s*(.*)', text)
-            materia = materia_match.group(1).strip() if materia_match else None
-            materia = re.sub(r'\.\s*$', '', materia) if materia else None
+            # print(titles)
+            # Identificar las secciones basadas en los títulos y sus ubicaciones en el texto
+            secciones = {}
+            patrones_secciones = titles
 
-            codigo_match = re.search(r'Código\s*:\s*(.*)', text)
-            codigo = codigo_match.group(1).strip().replace(
-                " ", "") if codigo_match else None
-            codigo = re.sub(r'\.\s*$', '', codigo) if codigo else None
+            for i in range(len(patrones_secciones)):
+                start_idx = text.find(patrones_secciones[i])
+                end_idx = text.find(patrones_secciones[i + 1]) if i + 1 < len(patrones_secciones) else len(text)
+                secciones[patrones_secciones[i]] = text[start_idx:end_idx].strip()
 
-            condicion_match = re.search(r'Condici(?:ó|o)n\s*:\s*(.*)', text)
-            condicion = condicion_match.group(1).strip().replace(" ", "") if condicion_match else None
-            condicion = re.sub(r'\.\s*$', '', condicion) if condicion else None
+            # Crear una nueva instancia
+            pdf_instance = PDF(nombre=nombre_archivo)
 
-            curso_match = re.search(r'Curso\s*:\s*(.*)', text)
-            curso = curso_match.group(1).strip().replace(
-                " ", "") if curso_match else None
-            curso = re.sub(r'\.\s*$', '', curso) if curso else None
-
-            semestre_match = re.search(r'Semestre\s*:\s*(.*)', text)
-            semestre = semestre_match.group(1).strip().replace(
-                " ", "") if semestre_match else None
-            semestre = re.sub(r'\.\s*$', '', semestre) if semestre else None
-
-            requisitos_match = re.search(r'Requi\s*[\s]?sit\s*os\s*:\s*(.*)', text)
-            requisitos = requisitos_match.group(1).strip() if requisitos_match else None
-            requisitos = re.sub(r'\.\s*$', '', requisitos) if requisitos else None
-            if 'Pre-Requisito' in text:
-                requisitos_match = re.search(r'Pre-Requisito\s*:\s*(.*)', text)
-                requisitos = requisitos_match.group(1).strip() if requisitos_match else None
-                requisitos = re.sub(r'\.\s*$', '', requisitos) if requisitos else None
-            carga_horaria_semanal_match = re.search(
-                r'Carga\s+horaria\s+semanal\s*:\s*(.*)', text, re.IGNORECASE)
-            carga_horaria_semanal = carga_horaria_semanal_match.group(
-                1).strip() if carga_horaria_semanal_match else None
-            carga_horaria_semanal = re.sub(
-                r'\.\s*$', '', carga_horaria_semanal) if carga_horaria_semanal else None
-
-            carga_horaria_semestral_match = re.search(
-                r'Carga\s+horaria\s+semestral\s*:\s*(.*)', text, re.IGNORECASE)
-            carga_horaria_semestral = carga_horaria_semestral_match.group(
-                1).strip() if carga_horaria_semestral_match else None
-            carga_horaria_semestral = re.sub(
-                r'\.\s*$', '', carga_horaria_semestral) if carga_horaria_semestral else None
-            if 'Carga horaria' in text and carga_horaria_semestral is None:
-                carga_horaria_semanal_match = re.search(
-                    r'Carga\s+horaria\s*:\s*(.*)', text, re.IGNORECASE)
-                carga_horaria_semanal = carga_horaria_semanal_match.group(
-                    1).strip() if carga_horaria_semanal_match else None
-                carga_horaria_semanal = re.sub(
-                    r'\.\s*$', '', carga_horaria_semanal) if carga_horaria_semanal else None
-            if 'Total' in text and carga_horaria_semestral is None:
-                carga_horaria_semestral_match = re.search(
-                    r'Total\s*:\s*(.*)', text, re.IGNORECASE)
-                carga_horaria_semestral = carga_horaria_semestral_match.group(
-                    1).strip() if carga_horaria_semestral_match else None
-                carga_horaria_semestral = re.sub(
-                    r'\.\s*$', '', carga_horaria_semestral) if carga_horaria_semestral else None
-            carrera_match = re.search(r'Carrera\s*:\s*(.*)', text)
-            carrera = carrera_match.group(1).strip() if carrera_match else None
-            carrera = re.sub(r'\.\s*$', '', carrera) if carrera else None
-
-            fundamentacion_match = re.search(
-                r'FUNDAMENTACIÓN\s*(?:\. )?(.*?)(?=III.|$)', text, re.DOTALL)
-            fundamentacion = fundamentacion_match.group(
-                1).strip() if fundamentacion_match else None
-            if 'FUNDAME NTACIÓN' in text :
-                fundamentacion_match = re.search(
-                    r'FUNDAME NTACIÓN\s*(?:\. )?(.*?)(?=III.|$)', text, re.DOTALL)
-                fundamentacion = fundamentacion_match.group(
-                    1).strip() if fundamentacion_match else None
-            objetivos_match = re.search(
-                r'OBJETI(?:\s+)?VOS\s*(?:\. )?(.*?)(?=IV.|$)', text, re.DOTALL)
-            objetivos_text = objetivos_match.group(1).strip() if objetivos_match else None
-
-            if 'CONTENIDO' in text:
-                contenido_match = re.search(r'CONTENIDO\s*(?:\. )?(.*?)(?=V. |$)', text, re.DOTALL)
-                contenido = contenido_match.group(1).strip() if contenido_match else None
-                # Aquí puedes realizar cualquier otra acción relacionada con el contenido
-            elif 'CONTEN IDO' in text:
-                contenido_match = re.search(r'CONTEN IDO\s*(?:\. )?(.*?)(?=V. |$)', text, re.DOTALL)
-                contenido = contenido_match.group(1).strip() if contenido_match else None
-                # Aquí puedes realizar cualquier otra acción relacionada con el contenido
-            elif 'CONT ENIDO' in text:
-                contenido_match = re.search(r'CONT ENIDO\s*(?:\. )?(.*?)(?=V. |$)', text, re.DOTALL)
-                contenido = contenido_match.group(1).strip() if contenido_match else None
-                # Aquí puedes realizar cualquier otra acción relacionada con el contenido
-            else:
-                contenido = None
-
-
-
-            patron_metodologia = r'METODO(?:LOG[ ]?)?(?:[IÍÍ]A| LOG[ ]ÍA)\s*(?:\. )?(\w+)(?=VI\.|Carrera\.|/Z)\.'
-
-            metodologia_match = re.search(patron_metodologia, text, re.DOTALL)
-            metodologia = metodologia_match.group(1).strip() if metodologia_match else None
-
-            if 'METODOLOG ÍA' in text:
-                metodologia_match = re.search(r'METODOLOG ÍA\s*(?:\. )?(.*?)(?=VI. |$)', text, re.DOTALL)
-                metodologia = metodologia_match.group(1).strip() if metodologia_match else None
-            elif 'METODO LOG ÍA' in text:
-                metodologia_match = re.search(r'METODO LOG ÍA\s*(?:\. )?(.*?)(?=VI. |$)', text, re.DOTALL)
-                metodologia = metodologia_match.group(1).strip() if metodologia_match else None
-            elif 'METODOLOGIA' in text:
-                metodologia_match = re.search(r'METODOLOGIA\s*(?:\. )?(.*?)(?=VI. |$)', text, re.DOTALL)
-                metodologia = metodologia_match.group(1).strip() if metodologia_match else None
-            elif 'METODOLOGÍA' in text:
-                metodologia_match = re.search(r'METODOLOGÍA\s*(?:\. )?(.*?)(?=VI. |$)', text, re.DOTALL)
-                metodologia = metodologia_match.group(1).strip() if metodologia_match else None
-
-            elif 'ESTRATEGIAS METODOLÓGICAS' or 'ESTRATEGIAS METODOLOGICAS' in text and metodologia is None:
-                metodologia_match = re.search(r'ESTRATEGIAS METODOLÓGICAS\s*(?:\. )?(.*?)(?=VI. |$)', text, re.DOTALL)
-   
-                if metodologia_match is None:
-                    metodologia_match = re.search(r'ESTRATEGIAS METODOLOGICAS\s*(?:\. )?(.*?)(?=VI. |$)', text,
-                                                  re.DOTALL)
-                metodologia = metodologia_match.group(1).strip() if metodologia_match else None
-                evaluacion_match = re.search(
-                    r'EVALUACIÓN\s*(?:\. )?(.*?)(?=BIBLIOGRAFÍA|VIII\.|\Z)', text, re.DOTALL)
-                evaluacion = evaluacion_match.group(
-                    1).strip() if evaluacion_match else None
-            evaluacion_match = re.search(
-                r'EVALUACIÓN\s*(?:\. )?(.*?)(?=BIBLIOGRAFÍA|VII\.|\Z)', text, re.DOTALL)
-            evaluacion = evaluacion_match.group(
-                1).strip() if evaluacion_match else None
-
-            bibliografia_match = re.search(
-                r'BIBLIOGRAFÍA\s*(?:\. )?(.*?)(?=\Z)', text, re.DOTALL)
-            bibliografia = bibliografia_match.group(
-                1).strip() if bibliografia_match else None
-
-
-
-            # Guardar en la base de datos
-            pdf = PDF(nombre=nombre_archivo, materia=materia,
-                      carrera=carrera, codigo=codigo, objetivos=objetivos_text,
-                      fundamentacion=fundamentacion, contenido=contenido, metodologia=metodologia,
-                      evaluacion=evaluacion, bibliografia=bibliografia, condicion=condicion,
-                      curso=curso, semestre=semestre, requisitos=requisitos,
-                      carga_Horaria_Semanal=carga_horaria_semanal, carga_Horaria_Semestral=carga_horaria_semestral)
-            pdf.save()
+            for titulo, texto in secciones.items():
+                titulo_normalized = unidecode(titulo)  # Normalizar los caracteres
+                if 'IDENTIFICACION' in titulo_normalized:
+                    extraer_datos_identificacion(pdf_instance, texto)
+                elif 'FUNDAMENTACION' in titulo_normalized:
+                    partes_texto = texto.split('.')
+                    if len(partes_texto) > 1:
+                        texto_fundamentacion = '.'.join(partes_texto[1:-2]).strip()
+                    else:
+                        texto_fundamentacion = ''
+                    pdf_instance.fundamentacion = texto_fundamentacion
+                elif 'OBJETIVOS' in titulo_normalized:
+                    partes_texto = texto.split('.')
+                    if len(partes_texto) > 1:
+                        texto_objetivos = '.'.join(partes_texto[1:-2]).strip()
+                        if not texto_objetivos:
+                            partes_texto = texto.split('\n')
+                            print(partes_texto)
+                            texto_objetivos = '\n'.join(partes_texto[1:-2]).strip()
+                    else:
+                        texto_objetivos = ''
+                    pdf_instance.objetivos = texto_objetivos
+                elif 'CONTENIDO' in titulo_normalized:
+                    partes_texto = texto.split('.')
+                    if len(partes_texto) > 1:
+                        texto_contenido = '.'.join(partes_texto[1:-2]).strip()
+                    else:
+                        texto_contenido = ''
+                    pdf_instance.contenido = texto_contenido
+                elif 'METODOLOGIA' in titulo_normalized:
+                    partes_texto = texto.split('.')
+                    if len(partes_texto) > 1:
+                        texto_metodologia = '.'.join(partes_texto[1:-2]).strip()
+                    else:
+                        texto_metodologia = ''
+                    pdf_instance.metodologia = texto_metodologia
+                elif 'EVALUACION' in titulo_normalized:
+                    partes_texto = texto.split('.')
+                    if len(partes_texto) > 1:
+                        texto_evaluacion = '.'.join(partes_texto[1:-2]).strip()
+                    else:
+                        texto_evaluacion = ''
+                    pdf_instance.evaluacion = texto_evaluacion
+                elif 'BIBLIOGRAFIA' in titulo_normalized:
+                    partes_texto = texto.split('\n')
+                    print(partes_texto)
+                    if len(partes_texto) > 1:
+                        texto_bibliografia = '\n'.join(partes_texto[1:]).strip()
+                    else:
+                        texto_bibliografia = ''
+                    pdf_instance.bibliografia = texto_bibliografia
+            # Guardar la instancia en la base de datos
+            pdf_instance.save()
 
         return redirect('import_success')
     return render(request, 'import_pdf.html')
 
 
-def menu(request):
-    return render(request, 'menu.html', )
+def extraer_datos_identificacion(pdf_instance, texto):
+    lines = texto.split('\n')
+    for i, line in enumerate(lines):
+        line = line.strip()
+        if 'nombre de la materia' in line.lower():
+            pdf_instance.materia = extraer_valor(line, lines[i + 1])
+        elif 'código' in line.lower():
+            pdf_instance.codigo = extraer_valor(line, lines[i + 1])
+        elif 'condición' in line.lower():
+            pdf_instance.condicion = extraer_valor(line, lines[i + 1])
+        elif 'carrera' in line.lower():
+            pdf_instance.carrera = extraer_valor(line, lines[i + 1])
+        elif 'curso' in line.lower():
+            pdf_instance.curso = extraer_valor(line, lines[i + 1])
+        elif 'semestre' in line.lower():
+            pdf_instance.semestre = extraer_valor(line, lines[i + 1])
+        elif 'requisitos' in line.lower():
+            pdf_instance.requisitos = extraer_valor(line, lines[i + 1])
+        elif 'semanal' in line.lower():
+            pdf_instance.cargaSemanal = extraer_valor(line, lines[i + 1])
+        elif 'semestral' in line.lower():
+            pdf_instance.cargaSemestral = extraer_valor(line, lines[i + 1])
 
-def programa(request):
-    id = request.GET.get('Materia')
-    pdf = PDF.objects.get(id=id)
-    return render(request, 'programa.html', {'pdf': pdf})
 
+def extraer_valor(linea_actual, linea_siguiente):
+    # Si la línea actual contiene un ':', lo dividimos y tomamos el segundo elemento
+    if ':' in linea_actual:
+        valor = linea_actual.split(':', 1)[1].strip()
+        valor = valor.replace(':', '').strip()
+        # Si el valor de la línea actual no está vacío después de eliminar los dos puntos, lo retornamos
+        if valor:
+            return valor
 
+    # Si la línea siguiente no está vacía, la retornamos como valor
+    if linea_siguiente.strip():
+        valor_siguiente = linea_siguiente.replace(':', '').strip()
+        if valor_siguiente:
+            return valor_siguiente
 
+    return None
 def get_materiasf(request, codcarrera):
     materias = list(PDF.objects.filter(codigo__icontains=codcarrera).values())
     if (len(materias) > 0):
@@ -216,4 +298,8 @@ def get_materiasf(request, codcarrera):
         data = {'message': "Not Found"}
 
     return JsonResponse(data)
+
+def menu(request):
+    return render(request, 'menu.html', )
+
 
