@@ -81,12 +81,12 @@ def pdf_to_html(request):
                     'cargaSemestral': pdf_instance.cargaSemestral,
                 }
                 secciones = {
-                    'fundamentacion': pdf_instance.fundamentacion,
-                    'objetivos': procesar_lista(pdf_instance.objetivos),
-                    'contenido': pdf_instance.contenido.replace('\n', '<br>'),
-                    'metodologia': procesar_lista(pdf_instance.metodologia),
-                    'evaluacion': pdf_instance.evaluacion.replace('\n', '<br>'),
-                    'bibliografia': procesar_lista(pdf_instance.bibliografia),
+                    'II.FUNDAMENTACIÓN.': pdf_instance.fundamentacion,
+                    'III.OBJETIVOS.': procesar_lista(pdf_instance.objetivos),
+                    'IV.CONTENIDO.': pdf_instance.contenido.replace('\n', '<br>'),
+                    'V.METODOLOGíA.': procesar_lista(pdf_instance.metodologia),
+                    'VI.EVALUACIÓN': pdf_instance.evaluacion.replace('\n', '<br>'),
+                    'VII.BIBLIOGRAFÍA.': procesar_lista(pdf_instance.bibliografia),
                 }
                 identificaciones.append({'identificacion': identificacion, 'secciones': secciones})
                 print("Nombre: ", pdf_instance.nombre)
@@ -95,7 +95,9 @@ def pdf_to_html(request):
                 pass  # Manejar la situación en la que el PDF no existe`
 
         identificaciones.sort(key=lambda x: x['identificacion']['codigo'])
-
+        print("Identificaciones ordenadas:")
+        for identificacion in identificaciones:
+            print(identificacion['identificacion']['codigo'])
         if identificaciones:
             html_content = render_to_string('pdf_to_html_template.html', {'identificaciones': identificaciones})
             return HttpResponse(html_content)
