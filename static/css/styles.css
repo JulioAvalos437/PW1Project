@@ -1,4 +1,4 @@
-    /* Estilos generales */
+/* Estilos generales */
     body {
         font-family: Arial, sans-serif;
         line-height: 1.6;
@@ -9,19 +9,42 @@
         align-items: center;
         min-height: 100vh;
         background-color: #f8f9fa;
+
+
     }
     .page-break {
         break-after: page;
+
+
     }
 
     /* Estilos para la página */
-    @page {
+    @page  {
         size: A4;
         background-color: #fff;
         padding-top: 12px ;
+
+
     }
 
-    @page :first {
+
+
+    @page :nth(n+2) {
+        margin-top: 11.5mm;
+        @top-center {
+            content: element(header2);
+        }
+        border-top: 2px solid #555;
+    }
+    @page :nth(2){
+        counter-set: page 1;
+    }
+
+    #chapter {
+	page: chapter ;
+    }
+
+    @page chapter:first  {
         margin-top: 50mm;
         @top-left {
             content: url("/static/img/Logo2.png");
@@ -34,15 +57,6 @@
             content: url("/static/img/Logo.png");
         }
         border-top: 3px solid #555;
-    }
-
-    @page :nth(n+2) {
-        margin-top: 11.5mm;
-        @top-center {
-            content: element(header2);
-        }
-        border-top: 2px solid #555;
-
     }
 
     .header {
@@ -74,41 +88,53 @@
         border-radius: 10px; /* Bordes redondeados */
     }
 
-    /* Estilos para la paginación */
 
-    .pagedjs_margin-bottom::after {
-        content: "Página " counter(page);
-        position: absolute;
-        color: #000;
-        font-size: 12px;
-        text-align: center;
-        width: 76%;
-    }
+    /* Estilos para la paginación */
+.pagedjs_page:first-child .pagedjs_margin-bottom::after {
+    content: none; /* Elimina el contenido de paginación en la primera página */
+}
+
+.pagedjs_page:first-child .pagedjs_margin-bottom {
+    border: none; /* Elimina el borde superior en la primera página */
+}
+  .pagedjs_page:not(:first-child):not(:last-child) .pagedjs_margin-bottom::after {
+    content: "Página " counter(page);
+    position: absolute;
+    color: #000;
+    font-size: 12px;
+    text-align: right;
+    width: 76%;
+}
+
 
 
     /* Estilos para el contenedor de la paginación */
 
-    .pagedjs_margin-bottom {
-        border-top: 2px solid #555;
-    }
+  .pagedjs_page:not(:first-child):not(:last-child) .pagedjs_margin-bottom {
+    border-top: 2px solid #555;
+}
 
     /* Estilo para el contenido */
-    .content {
-        padding: 20px; /* Espacio alrededor del contenido */
-    }
+
+
+
 
     /* Estilo para títulos */
     h2 {
-        font-size: 18px;
+        font-size: 16px;
         margin-bottom: 10px;
     }
 
     /* Estilo para párrafos */
     p {
-        font-size: 14px;
+        font-size: 12px;
         margin-bottom: 15px;
+       /* line-height: 1.15;*/
     }
-
+    li {
+        font-size: 12px;
+        text-align: justify;
+    }
     /* Estilo para imágenes */
     img {
         max-width: 100%;
@@ -140,11 +166,98 @@
     .identification-table {
         display: flex;
         flex-directin: column;
+        font-size: 12px;
+        margin-left: 20px;
     }
-
+    .identification-table td.pcolumn {
+    width: 300px;
+}
     /* Estilo para el título */
     .identification-table p span {
         width: 200px;
         display: inline-block;
     }
+#tabla-lineas-nombres {
+            border-collapse: collapse;
+            width: 80%;
+            margin: 0 auto;
+            align-content: center;
+            padding: 20px;
+            border-radius: 10px;
+             background-color: transparent;
 
+        }
+        #tabla-lineas-nombres td {
+            border: black;
+            text-align: center;
+            padding-top: 0px;
+            font-size: 10px;
+            line-height: 10px;
+              /* Mantiene la tabla en una posición fija en la pantalla */
+    top: 0; /* Ajusta la posición superior según sea necesario */
+    left: 0; /* Ajusta la posición izquierda según sea necesario */
+    z-index: 2; /
+        }
+        #evaluacion-table {
+            font-size: 12px;
+
+        }
+         #evaluacion-content p{
+
+             text-align: justify;
+             text-justify: inter-word;
+             word-spacing: normal;
+             margin: 5px;
+         }
+           .page-count {
+            text-align: center;
+            margin-top: 50px;
+        }
+            #evaluacion-table {
+            border: 1px solid black;
+            border-collapse: collapse;
+                margin-left: 8px;
+        }
+
+        #evaluacion-table th, #evaluacion-table td {
+            border: 1px solid black;
+            padding: 8px;
+        }
+        .columnados{
+            min-width: 290px;
+        }
+        #evaluacion-content{
+            padding-left: 20px;
+        }
+        #seccion{
+            padding-left: 20px;
+        }
+.pagedjs_page:first-child {
+    visibility: hidden;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+.informe{
+    justify-content: left;
+    text-align: left;
+}
+
+#viibibliografia li{
+    margin: 2px;
+
+}
+#viibibliografia li:last-child {
+    margin-bottom: 0; /* Ajusta el margen inferior del último <li> a 0 */
+}
+#viibibliografia ul{
+   margin: 0;
+}
+#iifundamentacion  p{
+   text-align: justify;
+    margin-left: 20px;
+}
+#ivcontenido p{
+    margin-left: 20px;
+}

@@ -1,0 +1,88 @@
+
+               body {
+            font-family: Montserrat, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        form {
+            max-width: 800px;
+            margin: 50px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        select, button {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            border: 1px solid #000000;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #4cafac;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #455aa0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .semestre-title {
+            background-color: #f9f9f9;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .semestre-container {
+            border: 1px solid rgba(0, 0, 0, 0.384);
+            border-radius: 15px;
+            vertical-align: top
+        }
+
+    .checkbox-container input {
+        text-align: right;
+    }
+    .semestre-container td:first-child {
+    font-weight: bold;
+    color: black;
+}
+    #btnFirma{
+        max-width: 750px;
+        width: 50%;
+        margin: auto;
+        display: block;
+    }
+      #btnImportarPDF{
+        max-width: 750px;
+        width: 50%;
+        margin: auto;
+        display: block;
+    }
+.icon-button {
+            cursor: pointer;
+            font-size: 30px;
+        }

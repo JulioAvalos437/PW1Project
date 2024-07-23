@@ -29,3 +29,11 @@ class PDF(models.Model):
 
     def __str__(self):
         return self.nombre
+    class Meta:
+        ordering = ['codigo']
+class Firma(models.Model):
+    nombre = models.CharField(max_length=100)
+    ocupacion = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.nombre

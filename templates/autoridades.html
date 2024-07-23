@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulario</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        form {
+            max-width: 500px;
+            margin: 50px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+
+        input[type="text"], select, button {
+            padding: 10px;
+            margin: 5px 0 15px;
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #4cafac;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #455aa0;
+        }
+    </style>
+</head>
+<body>
+{% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+<form method="post" action="{% url 'actualizar_firma' %}">
+    {% csrf_token %}
+    <label for="categoria">Actualizacion de Sellos:</label>
+    <select id="slcAutoridad" name="Autoridad">
+        <option value="1">Sello de la izquierda</option>
+        <option value="2">Sello del centro</option>
+        <option value="3">Sello de la derecha</option>
+    </select>
+
+    <label for="nombre">Nombre:</label>
+    <input required type="text" id="txtnombre" name="nombretxt" placeholder="Ingrese su nombre" value="{{ firma.nombre }}" >
+
+    <label for="ocupacion">Ocupación:</label>
+    <input required type="text" id="txtocupacion" name="ocupaciontxt" placeholder="Ingrese su ocupación" value="{{ firma.ocupacion }}">
+
+    <button type="submit">Guardar</button>
+</form>
+
+<script>
+
+   const listarAutoridades = async (codAutoridad) => {
+    try {
+        const response = await fetch(`./autoridades/${codAutoridad}`);
+        const data = await response.json();
+        console.log(data)
+        if (data.message === "Success") {
+            const autoridad = data.autoridades[0];
+            document.getElementById("txtnombre").value = autoridad.nombre;
+            document.getElementById("txtocupacion").value = autoridad.ocupacion;
+        }else {
+            alert("Autoridad no encontradas...");
+        }
+    } catch (error) {
+        console.log(error);
+    }
+};
+
+
+   const cargaInicial = async () => {
+        listarAutoridades('1');
+        slcAutoridad.addEventListener("change", (event) => {
+            listarAutoridades(event.target.value);
+        });
+    };
+
+    window.addEventListener("load", async () => {
+        await cargaInicial();
+    });
+
+</script>
+</body>
+</html>

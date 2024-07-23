@@ -1,12 +1,13 @@
 import pdfplumber
 from django.shortcuts import render, redirect
-from .models import PDF, Carrera
+from .models import PDF, Carrera , Firma
 from io import BytesIO
 from unidecode import unidecode
 from django.http import HttpResponse, JsonResponse
 from django.template.loader import render_to_string
+from django.shortcuts import render, redirect, get_object_or_404
 
-
+from django.contrib import messages
 def import_success(request):
     return render(request, 'import_success.html')
 
@@ -60,6 +61,9 @@ def procesar_lista(contenido):
 
 
 def pdf_to_html(request):
+    firmas = Firma.objects.all()
+    if request.method == 'GET':
+        codCarrera = request.GET.get('idCarrera')
     pdf_ids = request.GET.getlist('pdf_id')
     print(pdf_ids)  # Obtener lista de IDs de PDF
     if pdf_ids:
@@ -84,6 +88,7 @@ def pdf_to_html(request):
                     'II.FUNDAMENTACIÓN.': pdf_instance.fundamentacion,
                     'III.OBJETIVOS.': procesar_lista(pdf_instance.objetivos),
                     'IV.CONTENIDO.': pdf_instance.contenido.replace('\n', '<br>'),
+                    #'IV.CONTENIDO.': procesar_lista(pdf_instance.contenido),
                     'V.METODOLOGíA.': procesar_lista(pdf_instance.metodologia),
                     'VI.EVALUACIÓN': pdf_instance.evaluacion.replace('\n', '<br>'),
                     'VII.BIBLIOGRAFÍA.': procesar_lista(pdf_instance.bibliografia),
@@ -91,6 +96,7 @@ def pdf_to_html(request):
                 identificaciones.append({'identificacion': identificacion, 'secciones': secciones})
                 print("Nombre: ", pdf_instance.nombre)
                 print("Materia: ", pdf_instance.materia)
+
             except PDF.DoesNotExist:
                 pass  # Manejar la situación en la que el PDF no existe`
 
@@ -99,7 +105,7 @@ def pdf_to_html(request):
         for identificacion in identificaciones:
             print(identificacion['identificacion']['codigo'])
         if identificaciones:
-            html_content = render_to_string('pdf_to_html_template.html', {'identificaciones': identificaciones})
+            html_content = render_to_string('pdf_to_html_template.html', {'identificaciones': identificaciones,'codCarrera': codCarrera,'firmas':firmas })
             return HttpResponse(html_content)
         else:
             return HttpResponse("No se encontraron PDFs con las IDs proporcionadas.")
@@ -107,7 +113,8 @@ def pdf_to_html(request):
         return HttpResponse("No se proporcionaron IDs de PDF.")
 
 
-
+def autoridades(request):
+    return render(request, 'autoridades.html', )
 def eliminar_encabezados_pies_pagina(page):
     # Obtener el tamaño de la página
     width, height = page.width, page.height
@@ -132,7 +139,7 @@ def eliminar_encabezados_pies_pagina(page):
 
     # Eliminar la frase "Carrera de Ingeniería en Informática Facultad de Ciencias Tecnológicas – UNC@" si aparece como una frase completa
     page_text_filtered = [
-        line.replace("Carrera de Ingeniería en Informática Facultad de Ciencias Tecnológicas – UNC@", "") for line in
+        line.replace("Carrera de Ingeniería en Informática Facultad de Ciencias Tecnológicas – UNCA", "") for line in
         page_text_filtered]
 
     # Unir las líneas con saltos de línea
@@ -303,5 +310,34 @@ def get_materiasf(request, codcarrera):
 
 def menu(request):
     return render(request, 'menu.html', )
+
+def get_autoridades(request,codautoridad):
+    autoridades = list(Firma.objects.filter(id=codautoridad).values())
+    if (len(autoridades) > 0):
+        data = {'message': "Success", 'autoridades': autoridades}
+    else:
+        data = {'message': "Not Found"}
+
+    return JsonResponse(data)
+
+
+def actualizar_firma(request):
+    if request.method == "POST":
+        nombre = request.POST.get('nombretxt')
+        ocupacion = request.POST.get('ocupaciontxt')
+        autoridad_id = request.POST.get('Autoridad')
+
+
+        firma = get_object_or_404(Firma, id=autoridad_id)
+
+
+        firma.nombre = nombre
+        firma.ocupacion = ocupacion
+        firma.save()
+        messages.success(request, 'Actualización realizada correctamente.')
+        return redirect('autoridades')
+
+
+    return render(request, 'autoridades.html')
 
 

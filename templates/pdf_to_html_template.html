@@ -5,55 +5,115 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ nombre_archivo }}</title>
-    <script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
-    <script src="{% static 'js/pagedjs_custom.js' %}"></script>
+
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <style>
+
+    </style>
+     <script src="https://unpkg.com/pagedjs/dist/paged.polyfill.js"></script>
+    <script src="{% static 'js/pagedjs_custom.js' %}"></script>
 </head>
 <body>
+<script type="text/javascript">
+        var codCarrera = "{{ codCarrera }}";
+        document.addEventListener('DOMContentLoaded', function() {
+            // Espera a que Paged.js termine de paginar
+            PagedPolyfill.on('rendered', (flow) => {
+                let totalPages = document.querySelectorAll('.pagedjs_page').length;
+                totalPages = Math.max(0, totalPages - 2); // Restar 2 del total de páginas, asegurando que no sea negativo
+
+                // Contar la palabra "I.IDENTIFICACIÓN."
+                let identificationCount = 0;
+                document.querySelectorAll('.pagedjs_page').forEach(page => {
+                    identificationCount += (page.innerText.match(/I\.IDENTIFICACIÓN\./g) || []).length;
+                });
+
+                const pageCountElement = document.getElementById('page-count');
+                if (pageCountElement) {
+                    // Obtener la fecha y hora actual
+                    const currentDate = new Date();
+                    const formattedDate = currentDate.toLocaleDateString();
+                    const formattedTime = currentDate.toLocaleTimeString();
+
+                    pageCountElement.innerHTML = `
+        <p class="informe">Este foliado de programa de estudios contiene un Total de páginas: ${totalPages}.</p>
+        <p class="informe">Total de Programas Impresos: ${identificationCount}.</p>
+        <p class="informe">Fecha y hora actual de la Impresion: ${formattedDate} ${formattedTime}</p>
+    `;
+                }
+            });
+        });
+document.addEventListener('DOMContentLoaded', function() {
+    PagedPolyfill.on('rendered', (flow) => {
+        // Selecciona todas las secciones
+        const sections = document.querySelectorAll('.seccion');
+
+        sections.forEach(section => {
+            // Busca el título de la sección
+            const title = section.querySelector('h2');
+            if (title && title.textContent.trim() === 'VII.BIBLIOGRAFÍA.') {
+                // Selecciona todos los <ul> dentro de esta sección
+                const lists = section.querySelectorAll('ul');
+                lists.forEach(list => {
+                    list.classList.add('listabibliografia'); // Agrega la clase 'listabibliografia'
+                });
+            }
+        });
+
+
+    });
+});
+
+
+    </script>
+
     <!-- Contenedor de la hoja -->
     <div class="sheet-container">
         <!-- Contenido -->
     {% for identificacion_data in identificaciones %}
-        <div class="content">
+        <div class="content"  >
             <!-- Contenido de la página 1 -->
-            <div class="page">
+            <div class="page"  >
+            <section id="chapter">
+
+
                 <h2>I.IDENTIFICACIÓN.</h2>
 <div class="identification-table">
     <table>
         <tr>
-            <td>A. Nombre de la Materia</td>
+            <td class="pcolumn">A. Nombre de la Materia:</td>
             <td>{{ identificacion_data.identificacion.materia }}</td>
         </tr>
         <tr>
-            <td>B. Código</td>
+            <td class="pcolumn">B. Código:</td>
             <td>{{ identificacion_data.identificacion.codigo }}</td>
         </tr>
         <tr>
-            <td>C. Condición</td>
+            <td class="pcolumn">C. Condición:</td>
             <td>{{ identificacion_data.identificacion.condicion }}</td>
         </tr>
         <tr>
-            <td>D. Carrera</td>
+            <td class="pcolumn">D. Carrera:</td>
             <td>{{ identificacion_data.identificacion.carrera }}</td>
         </tr>
         <tr>
-            <td>E. Curso</td>
+            <td class="pcolumn">E. Curso:</td>
             <td>{{ identificacion_data.identificacion.curso }}</td>
         </tr>
         <tr>
-            <td>F. Semestre</td>
+            <td class="pcolumn">F. Semestre:</td>
             <td>{{ identificacion_data.identificacion.semestre }}</td>
         </tr>
         <tr>
-            <td>G. Requisitos</td>
+            <td class="pcolumn">G. Requisitos:</td>
             <td>{{ identificacion_data.identificacion.requisitos }}</td>
         </tr>
         <tr>
-            <td>H. Carga horaria semanal</td>
-            <td>{{ identificacion_data.identificacion.cargaSemanal }}</td>
+            <td class="pcolumn">H. Carga horaria semanal:</td>
+            <td >{{ identificacion_data.identificacion.cargaSemanal }}</td>
         </tr>
         <tr>
-            <td>I. Carga horaria semestral</td>
+            <td class="pcolumn">I. Carga horaria semestral:</td>
             <td>{{ identificacion_data.identificacion.cargaSemestral }}</td>
         </tr>
     </table>
@@ -61,19 +121,95 @@
 
 
                 {% for seccion_titulo, seccion_contenido in identificacion_data.secciones.items %}
+
+                     {% if seccion_titulo != 'VI.EVALUACIÓN' and seccion_titulo != 'VII.BIBLIOGRAFÍA.' %}
+                <div class="seccion" id="{{ seccion_titulo|slugify }}">
                     <h2>{{ seccion_titulo }}</h2>
                     <p>{{ seccion_contenido|safe }}</p>
+                </div>
+                         {% if seccion_titulo == 'V.METODOLOGíA.' %}
+                 <h2>VI.EVALUACIÓN</h2>
+                             <div id="evaluacion-content">
+                       <p>Art. 43.-El sistema de evaluación del aprendizaje de los estudiantes de la Facultad de
+Ciencias y Tecnologías de la Universidad Nacional de Caaguazú, consta de dos
+                           fases:</p>
+                                 <p>
+                       1. Evaluación procesual sumatoria, con una carga del (60%) sesenta por ciento
+del puntaje total posible por semestre;</p>
+                           <p>2. Evaluación Final Global, con una carga del (40%) cuarenta por ciento del
+    puntaje total posible en la final semestral.</p>
+<p>Art. 46.-La evaluación procesual sumatoria estará regida por los programas de estudio de
+cada materia y contará con diferentes estrategias de evaluación, que podrán ser:
+trabajos prácticos, de investigación, extensión universitaria, revisión bibliográfica,
+                           giras educativas, pasantías, pruebas parciales.</p>
+<p>Art. 51.-El sistema de evaluación de la FCyT consta de dos fases: La evaluación procesual
+sumatoria y la evaluación final global. La evaluación procesual sumatoria equivale al
+                       60% y la evaluación final global equivale al 40% del total acumulable de puntos.</p>
+<p>Art. 52.-Los criterios de evaluación durante el proceso podrán basarse en las siguientes
+    actividades y se llevarán a cabo durante el periodo lectivo:</p>
+<p>a) <b>Las pruebas parciales</b>, que deberán ser dos como mínimo según los criterios
+                       del profesor de cada materia.</p>
+<p>b) <b>Las giras educativas, visitas técnicas, trabajo de campo</b>, que podrán ser
+reemplazados por evaluaciones parciales en caso de que no hayan sido factibles
+su realización.</p>
+<p>c) <b>Las revisiones bibliográficas, con presentación escrita y defensa oral</b> de los
+mismos.</p>
+                       <p>d) <b>Trabajos Prácticos con presentación oral y escrita</b> (práctica inherente a cada
+materia).</p>
+<p>La distribución de los puntos del proceso (60%) se hará conforme al siguiente
+cuadro:</p>
+                       <table id="evaluacion-table">
+                       <tr>
+                           <td>Eventos</td>
+                           <td class="columnados">Carga Porcentual</td>
+                       </tr>
+                        <tr>
+                           <td>Exámenes Parciales </td>
+                           <td class="columnados">Mínimo 45%</td>
+                       </tr>
+                        <tr>
+                           <td>
+                               Laboratorios<br>
+                               Pruebas Sumativas
+                           </td>
+                           <td class="columnados">Aplicación a criterio del docente,como máximo 15%</td>
+                       </tr>
+                       </table>
+                       <p >Art. 53.-Para la habilitación al examen final global, el estudiante deberá lograr, como
+mínimo el 60% de los puntos acumulables en la evaluación procesual sumatoria.Cuando el estudiante reúna un mínimo del 40% de la evaluación
+procesual sumatoria, tendrá derecho hasta a dos exámenes de recuperación</p>
+                             </div>
+            {% endif %}
+            {% endif %}
+
+                    {% if  seccion_titulo == 'VII.BIBLIOGRAFÍA.' %}
+                <div class="seccion" id="{{ seccion_titulo|slugify }}">
+                    <h2>{{ seccion_titulo }}</h2>
+                    <p>{{ seccion_contenido|safe }}</p>
+                </div>
+            {% endif %}
+
 
                    {% if forloop.last %}
-                    <!-- Salto de página después del último ciclo -->
+                     <table id="tabla-lineas-nombres">
+        <tr>
+            {% for firma in firmas  %}
+            <td>{{ firma.nombre}}<br>{{ firma.ocupacion }}</td>
+            {% endfor %}
+        </tr>
+    </table>
+
                     <div class="page-break"></div>
                 {% endif %}
             {% endfor %}
+        </section>
 
-            </div>
-        </div>
     {% endfor %}
     </div>
+      <div class="page">
+            <h1>Informe</h1>
+            <p class="page-count" id="page-count"></p>
 
+        </div>
 </body>
 </html>
